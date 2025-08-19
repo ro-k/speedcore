@@ -1,0 +1,46 @@
+# Built application files
+*.apk
+*.ap_
+*.aab
+*.aar
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+build/
+.gradle/
+.idea/
+local.properties
+.DS_Store
+*.iml
+.externalNativeBuild/
+.cxx/
+.navigation/
+captures/
+.idea/libraries/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/compiler.xml
+.idea/deploymentTargetSelector.xml
+.idea/encodings.xml
+.idea/misc.xml
+.idea/vcs.xml
+.idea/codeStyles/
+.idea/dictionaries/
+.idea/copyright/
+.idea/scopes/
+.idea/shelf/
+.idea/sonarlint/
+.idea/inspectionProfiles/
+.idea/runConfigurations/
+.idea/jarRepositories.xml
+.idea/modules.xml
+.idea/render.xml
+/AGENTS.md
