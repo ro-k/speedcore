@@ -1,31 +1,31 @@
 package com.roman.speedcore;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
-import android.content.Context;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationRequest;
-import android.location.GnssStatus;
-import java.util.Locale;
-
 import com.google.android.material.appbar.MaterialToolbar;
-import android.view.Menu;
-import android.view.MenuItem;
+import java.util.Locale;
+import android.location.GnssStatus;
 
-public class MainActivity extends AppCompatActivity {
-
-    private boolean isMetric = false; // false = mph/mi, true = km/h/km
+public class MainActivity extends AppCompatActivity implements SettingsDialogFragment.SettingsDialogListener {
 
     private TextView speedText;
     private TextView unitText;
@@ -50,7 +50,8 @@ public class MainActivity extends AppCompatActivity {
         satelliteCountText = findViewById(R.id.satellite_count_text_view);
 
         findViewById(R.id.reset_button).setOnClickListener(v -> resetTrip());
-        findViewById(R.id.switch_units_button).setOnClickListener(v -> toggleUnits());
+        findViewById(R.id.switch_units_button).setVisibility(View.GONE);
+
 
         MaterialToolbar toolbar = findViewById(R.id.top_app_bar);
         if (toolbar != null) {
@@ -66,11 +67,11 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 for (Location location : locationResult.getLocations()) {
-                    // Update UI with location data
                     if (location.hasSpeed()) {
-                        float currentSpeed = location.getSpeed() * (isMetric ? 3.6f : 2.23694f); // m/s to km/h or mph
+                        SharedPreferences sharedPreferences = getSharedPreferences(SettingsDialogFragment.PREFS_NAME, Context.MODE_PRIVATE);
+                        boolean isMetric = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_IS_METRIC, false);
+                        float currentSpeed = location.getSpeed() * (isMetric ? 3.6f : 2.23694f);
                         speedText.setText(formatNumber(currentSpeed));
-                        // TODO: Update max speed and distance
                     }
                 }
             }
@@ -90,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         checkLocationPermission();
+        loadAndApplySettings();
     }
 
     @Override
@@ -104,10 +106,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        checkLocationPermission(); // This will start location updates if permission is granted
+        checkLocationPermission();
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationManager.registerGnssStatusCallback(getMainExecutor(), gnssStatusCallback);
         }
+        loadAndApplySettings();
     }
 
     @Override
@@ -119,27 +122,43 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_reset) {
-            resetTrip();
-            return true;
-        } else if (id == R.id.action_units) {
-            toggleUnits();
-            return true;
-        } else if (id == R.id.action_show_satellites) {
-            Toast.makeText(this, "Show Satellites clicked (TODO: Implement)", Toast.LENGTH_SHORT).show();
+        if (id == R.id.action_settings) {
+            new SettingsDialogFragment().show(getSupportFragmentManager(), SettingsDialogFragment.TAG);
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onSettingsChanged() {
+        loadAndApplySettings();
+    }
+
+    private void loadAndApplySettings() {
+        SharedPreferences sharedPreferences = getSharedPreferences(SettingsDialogFragment.PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isMetric = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_IS_METRIC, false);
+        boolean keepScreenOn = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_KEEP_SCREEN_ON, false);
+        boolean showSatellites = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_SHOW_SATELLITES, true);
+
+        if (keepScreenOn) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+
+        satelliteCountText.setVisibility(showSatellites ? View.VISIBLE : View.GONE);
+
+        unitText.setText(isMetric ? "km/h" : "mph");
+        maxSpeedText.setText(formatMaxSpeed(parseLabeledNumber(maxSpeedText.getText().toString())));
+        distanceText.setText(formatDistance(parseLabeledNumber(distanceText.getText().toString())));
     }
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
 
     private void checkLocationPermission() {
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            // Permission already granted, proceed with location updates
             startLocationUpdates();
         } else {
-            // Permission not granted, request it
             requestPermissions(new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
         }
     }
@@ -149,10 +168,8 @@ public class MainActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted, proceed with location updates
                 startLocationUpdates();
             } else {
-                // Permission denied, inform the user
                 Toast.makeText(this, "Location permission denied. Speedometer cannot function.", Toast.LENGTH_LONG).show();
             }
         }
@@ -160,25 +177,20 @@ public class MainActivity extends AppCompatActivity {
 
     private void startLocationUpdates() {
         LocationRequest locationRequest = LocationRequest.create();
-        locationRequest.setInterval(1000); // 1 second interval
-        locationRequest.setFastestInterval(500); // 0.5 second fastest interval
+        locationRequest.setInterval(1000);
+        locationRequest.setFastestInterval(500);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, getMainLooper());
-            Toast.makeText(this, "Location updates started.", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, "Location permission not granted. Cannot start updates.", Toast.LENGTH_LONG).show();
         }
     }
 
     private void stopLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(locationCallback);
-        Toast.makeText(this, "Location updates stopped.", Toast.LENGTH_SHORT).show();
     }
 
     private void resetTrip() {
-        // Reset displayed values; hook into your real logic as needed.
         speedText.setText("0");
         double zero = 0.0;
         maxSpeedText.setText(formatMaxSpeed(zero));
@@ -186,35 +198,19 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this, "Trip reset", Toast.LENGTH_SHORT).show();
     }
 
-    private void toggleUnits() {
-        isMetric = !isMetric;
-        unitText.setText(isMetric ? "km/h" : "mph");
-
-        // Convert currently displayed values for continuity.
-        try {
-            double currentSpeed = Double.parseDouble(speedText.getText().toString());
-            speedText.setText(formatNumber(convertSpeed(currentSpeed, !isMetric)));
-        } catch (NumberFormatException ignored) { }
-
-        double currentMax = parseLabeledNumber(maxSpeedText.getText().toString());
-        maxSpeedText.setText(formatMaxSpeed(convertSpeed(currentMax, !isMetric)));
-
-        double currentDist = parseLabeledNumber(distanceText.getText().toString());
-        distanceText.setText(formatDistance(convertDistance(currentDist, !isMetric)));
-
-        Toast.makeText(this, isMetric ? "Units: km/h" : "Units: mph", Toast.LENGTH_SHORT).show();
-    }
-
     private String formatMaxSpeed(double value) {
+        SharedPreferences sharedPreferences = getSharedPreferences(SettingsDialogFragment.PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isMetric = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_IS_METRIC, false);
         return "Max: " + formatNumber(value) + (isMetric ? " km/h" : " mph");
     }
 
     private String formatDistance(double value) {
+        SharedPreferences sharedPreferences = getSharedPreferences(SettingsDialogFragment.PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isMetric = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_IS_METRIC, false);
         return "Dist: " + formatNumber(value) + (isMetric ? " km" : " mi");
     }
 
     private String formatNumber(double value) {
-        // Keep it simple; no trailing .0 for integers
         if (Math.abs(value - Math.round(value)) < 1e-9) {
             return String.valueOf((long) Math.round(value));
         }
@@ -222,23 +218,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private double parseLabeledNumber(String labeled) {
-        // Extract first number in string like "Max: 12.3 mph"
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(-?\\d+(?:[.,]\\d+)?)").matcher(labeled);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(-?\\d+(?:[.,]\\d+)?+)").matcher(labeled);
         if (m.find()) {
             try {
                 return Double.parseDouble(m.group(1).replace(',', '.'));
             } catch (NumberFormatException ignored) { }
         }
         return 0.0;
-    }
-
-    private double convertSpeed(double value, boolean toMetric) {
-        // mph <-> km/h (1 mph = 1.60934 km/h)
-        return toMetric ? value * 1.60934 : value / 1.60934;
-    }
-
-    private double convertDistance(double value, boolean toMetric) {
-        // miles <-> km (1 mi = 1.60934 km)
-        return convertSpeed(value, toMetric);
     }
 }
