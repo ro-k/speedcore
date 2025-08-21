@@ -8,12 +8,16 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.annotation.NonNull;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.location.LocationManager;
+import android.content.Context;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationRequest;
+import android.location.GnssStatus;
+import java.util.Locale;
 
 import com.google.android.material.appbar.MaterialToolbar;
 
@@ -25,9 +29,12 @@ public class MainActivity extends AppCompatActivity {
     private TextView unitText;
     private TextView maxSpeedText;
     private TextView distanceText;
+    private TextView satelliteCountText;
 
     private FusedLocationProviderClient fusedLocationClient;
+    private LocationManager locationManager;
     private LocationCallback locationCallback;
+    private GnssStatus.Callback gnssStatusCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
         unitText = findViewById(R.id.speed_unit_text_view);
         maxSpeedText = findViewById(R.id.max_speed_text_view);
         distanceText = findViewById(R.id.distance_text_view);
+        satelliteCountText = findViewById(R.id.satellite_count_text_view);
 
         findViewById(R.id.reset_button).setOnClickListener(v -> resetTrip());
         findViewById(R.id.switch_units_button).setOnClickListener(v -> toggleUnits());
@@ -53,11 +61,15 @@ public class MainActivity extends AppCompatActivity {
                 } else if (id == R.id.action_units) {
                     toggleUnits();
                     return true;
+                } else if (id == R.id.action_show_satellites) {
+                    Toast.makeText(this, "Show Satellites clicked (TODO: Implement)", Toast.LENGTH_SHORT).show();
+                    return true;
                 }
                 return false;
             });
         }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
         locationCallback = new LocationCallback() {
             @Override
@@ -75,6 +87,20 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
+
+        gnssStatusCallback = new GnssStatus.Callback() {
+            @Override
+            public void onSatelliteStatusChanged(@NonNull GnssStatus status) {
+                int satelliteCount = status.getSatelliteCount();
+                int usedInFixCount = 0;
+                for (int i = 0; i < satelliteCount; i++) {
+                    if (status.usedInFix(i)) {
+                        usedInFixCount++;
+                    }
+                }
+                satelliteCountText.setText(String.format(Locale.getDefault(), "Satellites: %d (%d used)", satelliteCount, usedInFixCount));
+            }
+        };
         checkLocationPermission();
     }
 
@@ -82,6 +108,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         stopLocationUpdates();
+        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager.unregisterGnssStatusCallback(gnssStatusCallback);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkLocationPermission(); // This will start location updates if permission is granted
+        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager.registerGnssStatusCallback(getMainExecutor(), gnssStatusCallback);
+        }
     }
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;

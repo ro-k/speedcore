@@ -9,5 +9,9 @@
         android:id="@+id/action_units"
         android:title="Units"
         app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_show_satellites"
+        android:title="Show Satellites"
+        app:showAsAction="never" />
 </menu>
 
