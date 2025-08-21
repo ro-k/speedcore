@@ -18,6 +18,7 @@
         <item name="android:background">?attr/colorPrimary</item>
         <item name="titleTextColor">@color/white</item>
         <item name="subtitleTextColor">@color/light_gray</item>
+        <item name="android:theme">@style/ThemeOverlay.MaterialComponents.Dark.ActionBar</item>
         <item name="titleCentered">true</item>
         <item name="subtitleCentered">true</item>
         <item name="android:elevation">0dp</item>

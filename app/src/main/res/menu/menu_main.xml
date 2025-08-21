@@ -4,14 +4,17 @@
     <item
         android:id="@+id/action_reset"
         android:title="Reset"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="never" />
     <item
         android:id="@+id/action_units"
         android:title="Units"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="never" />
     <item
         android:id="@+id/action_show_satellites"
         android:title="Show Satellites"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_settings"
+        android:title="Settings"
+        app:showAsAction="never" />
 </menu>
-

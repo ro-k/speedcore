@@ -20,6 +20,8 @@ import android.location.GnssStatus;
 import java.util.Locale;
 
 import com.google.android.material.appbar.MaterialToolbar;
+import android.view.Menu;
+import android.view.MenuItem;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -53,20 +55,6 @@ public class MainActivity extends AppCompatActivity {
         MaterialToolbar toolbar = findViewById(R.id.top_app_bar);
         if (toolbar != null) {
             setSupportActionBar(toolbar);
-            toolbar.setOnMenuItemClickListener(item -> {
-                int id = item.getItemId();
-                if (id == R.id.action_reset) {
-                    resetTrip();
-                    return true;
-                } else if (id == R.id.action_units) {
-                    toggleUnits();
-                    return true;
-                } else if (id == R.id.action_show_satellites) {
-                    Toast.makeText(this, "Show Satellites clicked (TODO: Implement)", Toast.LENGTH_SHORT).show();
-                    return true;
-                }
-                return false;
-            });
         }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -120,6 +108,28 @@ public class MainActivity extends AppCompatActivity {
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationManager.registerGnssStatusCallback(getMainExecutor(), gnssStatusCallback);
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_reset) {
+            resetTrip();
+            return true;
+        } else if (id == R.id.action_units) {
+            toggleUnits();
+            return true;
+        } else if (id == R.id.action_show_satellites) {
+            Toast.makeText(this, "Show Satellites clicked (TODO: Implement)", Toast.LENGTH_SHORT).show();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
