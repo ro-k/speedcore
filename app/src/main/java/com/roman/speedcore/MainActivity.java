@@ -12,6 +12,8 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.lifecycle.ViewModelProvider;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
@@ -24,8 +26,12 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.material.appbar.MaterialToolbar;
 import java.util.Locale;
 import android.location.GnssStatus;
+import android.os.Build;
+import androidx.annotation.RequiresApi;
 
 public class MainActivity extends AppCompatActivity implements SettingsDialogFragment.SettingsDialogListener {
+
+    private MainViewModel viewModel;
 
     private TextView speedText;
     private TextView unitText;
@@ -36,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     private FusedLocationProviderClient fusedLocationClient;
     private LocationManager locationManager;
     private LocationCallback locationCallback;
+    @RequiresApi(Build.VERSION_CODES.N)
     private GnssStatus.Callback gnssStatusCallback;
 
     @Override
@@ -43,23 +50,41 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        viewModel = new ViewModelProvider(this).get(MainViewModel.class);
+
         speedText = findViewById(R.id.speed_text_view);
         unitText = findViewById(R.id.speed_unit_text_view);
         maxSpeedText = findViewById(R.id.max_speed_text_view);
         distanceText = findViewById(R.id.distance_text_view);
         satelliteCountText = findViewById(R.id.satellite_count_text_view);
 
-        findViewById(R.id.reset_button).setOnClickListener(v -> resetTrip());
+        findViewById(R.id.reset_button).setOnClickListener(v -> viewModel.resetTrip());
         findViewById(R.id.switch_units_button).setVisibility(View.GONE);
 
-
         MaterialToolbar toolbar = findViewById(R.id.top_app_bar);
-        if (toolbar != null) {
-            setSupportActionBar(toolbar);
-        }
+        setSupportActionBar(toolbar);
+
+        setupObservers();
+
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
+        createLocationCallback();
+        createGnssStatusCallback();
+
+        checkLocationPermission();
+        loadAndApplySettings();
+    }
+
+    private void setupObservers() {
+        viewModel.getSpeed().observe(this, speedText::setText);
+        viewModel.getUnit().observe(this, unitText::setText);
+        viewModel.getMaxSpeed().observe(this, maxSpeedText::setText);
+        viewModel.getDistance().observe(this, distanceText::setText);
+        viewModel.getSatelliteCount().observe(this, satelliteCountText::setText);
+    }
+
+    private void createLocationCallback() {
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(@NonNull LocationResult locationResult) {
@@ -70,36 +95,39 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
                     if (location.hasSpeed()) {
                         SharedPreferences sharedPreferences = getSharedPreferences(SettingsDialogFragment.PREFS_NAME, Context.MODE_PRIVATE);
                         boolean isMetric = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_IS_METRIC, false);
-                        float currentSpeed = location.getSpeed() * (isMetric ? 3.6f : 2.23694f);
-                        speedText.setText(formatNumber(currentSpeed));
+                        viewModel.onLocationUpdate(location.getSpeed(), isMetric);
                     }
                 }
             }
         };
+    }
 
-        gnssStatusCallback = new GnssStatus.Callback() {
-            @Override
-            public void onSatelliteStatusChanged(@NonNull GnssStatus status) {
-                int satelliteCount = status.getSatelliteCount();
-                int usedInFixCount = 0;
-                for (int i = 0; i < satelliteCount; i++) {
-                    if (status.usedInFix(i)) {
-                        usedInFixCount++;
+    private void createGnssStatusCallback() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            gnssStatusCallback = new GnssStatus.Callback() {
+                @Override
+                public void onSatelliteStatusChanged(@NonNull GnssStatus status) {
+                    int satelliteCount = status.getSatelliteCount();
+                    int usedInFixCount = 0;
+                    for (int i = 0; i < satelliteCount; i++) {
+                        if (status.usedInFix(i)) {
+                            usedInFixCount++;
+                        }
                     }
+                    viewModel.onSatelliteStatusChanged(satelliteCount, usedInFixCount);
                 }
-                satelliteCountText.setText(String.format(Locale.getDefault(), "Satellites: %d (%d used)", satelliteCount, usedInFixCount));
-            }
-        };
-        checkLocationPermission();
-        loadAndApplySettings();
+            };
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         stopLocationUpdates();
-        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            locationManager.unregisterGnssStatusCallback(gnssStatusCallback);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                locationManager.unregisterGnssStatusCallback(gnssStatusCallback);
+            }
         }
     }
 
@@ -107,8 +135,10 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     protected void onResume() {
         super.onResume();
         checkLocationPermission();
-        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            locationManager.registerGnssStatusCallback(getMainExecutor(), gnssStatusCallback);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                locationManager.registerGnssStatusCallback(ContextCompat.getMainExecutor(this), gnssStatusCallback);
+            }
         }
         loadAndApplySettings();
     }
@@ -121,8 +151,7 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_settings) {
+        if (item.getItemId() == R.id.action_settings) {
             new SettingsDialogFragment().show(getSupportFragmentManager(), SettingsDialogFragment.TAG);
             return true;
         }
@@ -147,10 +176,7 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
         }
 
         satelliteCountText.setVisibility(showSatellites ? View.VISIBLE : View.GONE);
-
-        unitText.setText(isMetric ? "km/h" : "mph");
-        maxSpeedText.setText(formatMaxSpeed(parseLabeledNumber(maxSpeedText.getText().toString())));
-        distanceText.setText(formatDistance(parseLabeledNumber(distanceText.getText().toString())));
+        viewModel.onSettingsChanged(isMetric);
     }
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
@@ -188,42 +214,5 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
 
     private void stopLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(locationCallback);
-    }
-
-    private void resetTrip() {
-        speedText.setText("0");
-        double zero = 0.0;
-        maxSpeedText.setText(formatMaxSpeed(zero));
-        distanceText.setText(formatDistance(zero));
-        Toast.makeText(this, "Trip reset", Toast.LENGTH_SHORT).show();
-    }
-
-    private String formatMaxSpeed(double value) {
-        SharedPreferences sharedPreferences = getSharedPreferences(SettingsDialogFragment.PREFS_NAME, Context.MODE_PRIVATE);
-        boolean isMetric = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_IS_METRIC, false);
-        return "Max: " + formatNumber(value) + (isMetric ? " km/h" : " mph");
-    }
-
-    private String formatDistance(double value) {
-        SharedPreferences sharedPreferences = getSharedPreferences(SettingsDialogFragment.PREFS_NAME, Context.MODE_PRIVATE);
-        boolean isMetric = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_IS_METRIC, false);
-        return "Dist: " + formatNumber(value) + (isMetric ? " km" : " mi");
-    }
-
-    private String formatNumber(double value) {
-        if (Math.abs(value - Math.round(value)) < 1e-9) {
-            return String.valueOf((long) Math.round(value));
-        }
-        return String.format(java.util.Locale.getDefault(), "%.1f", value);
-    }
-
-    private double parseLabeledNumber(String labeled) {
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(-?\\d+(?:[.,]\\d+)?+)").matcher(labeled);
-        if (m.find()) {
-            try {
-                return Double.parseDouble(m.group(1).replace(',', '.'));
-            } catch (NumberFormatException ignored) { }
-        }
-        return 0.0;
     }
 }
