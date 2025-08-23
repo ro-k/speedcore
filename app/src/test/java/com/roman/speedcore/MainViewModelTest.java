@@ -1,12 +1,32 @@
-package com.roman.speedcore;
+import android.location.Location;
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+
 import static org.junit.Assert.*;
 
+import com.roman.speedcore.MainViewModel;
+import android.location.Location;
+
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule;
+
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+
+import static org.junit.Assert.*;
+
+import org.robolectric.annotation.Config;
+
+@RunWith(RobolectricTestRunner.class)
+@Config(sdk = 33)
 public class MainViewModelTest {
 
     @Rule
@@ -17,6 +37,14 @@ public class MainViewModelTest {
     @Before
     public void setup() {
         viewModel = new MainViewModel();
+    }
+
+    private Location createLocation(float speed, double latitude, double longitude) {
+        Location location = new Location("test");
+        location.setSpeed(speed);
+        location.setLatitude(latitude);
+        location.setLongitude(longitude);
+        return location;
     }
 
     @Test
@@ -66,14 +94,44 @@ public class MainViewModelTest {
 
     @Test
     public void onLocationUpdate_withMetric_updatesSpeed() {
-        viewModel.onLocationUpdate(10, true); // 10 m/s = 36 km/h
+        Location location = createLocation(10, 0, 0);
+        viewModel.onLocationUpdate(location, true); // 10 m/s = 36 km/h
         assertEquals("36", viewModel.getSpeed().getValue());
     }
 
     @Test
     public void onLocationUpdate_withImperial_updatesSpeed() {
-        viewModel.onLocationUpdate(10, false); // 10 m/s = 22.4 mph
+        Location location = createLocation(10, 0, 0);
+        viewModel.onLocationUpdate(location, false); // 10 m/s = 22.4 mph
         assertEquals("22.4", viewModel.getSpeed().getValue());
+    }
+
+    @Test
+    public void onLocationUpdate_updatesMaxSpeed() {
+        Location location1 = createLocation(10, 0, 0); // 22.4 mph
+        Location location2 = createLocation(20, 0, 0); // 44.7 mph
+        Location location3 = createLocation(15, 0, 0); // 33.6 mph
+
+        viewModel.onLocationUpdate(location1, false);
+        assertEquals("Max: 22.4 mph", viewModel.getMaxSpeed().getValue());
+
+        viewModel.onLocationUpdate(location2, false);
+        assertEquals("Max: 44.7 mph", viewModel.getMaxSpeed().getValue());
+
+        viewModel.onLocationUpdate(location3, false);
+        assertEquals("Max: 44.7 mph", viewModel.getMaxSpeed().getValue());
+    }
+
+    @Test
+    public void onLocationUpdate_updatesDistance() {
+        Location location1 = createLocation(10, 51.5074, -0.1278); // London
+        Location location2 = createLocation(10, 48.8566, 2.3522);  // Paris
+
+        viewModel.onLocationUpdate(location1, false);
+        assertEquals("Dist: 0 mi", viewModel.getDistance().getValue());
+
+        viewModel.onLocationUpdate(location2, false);
+        assertEquals("Dist: 213.7 mi", viewModel.getDistance().getValue());
     }
 
     @Test
@@ -96,6 +154,8 @@ public class MainViewModelTest {
 
     @Test
     public void resetTrip_resetsValues() {
+        Location location = createLocation(10, 0, 0);
+        viewModel.onLocationUpdate(location, false);
         viewModel.resetTrip();
         assertEquals("0", viewModel.getSpeed().getValue());
         assertEquals("Max: 0 mph", viewModel.getMaxSpeed().getValue());
