@@ -59,6 +59,14 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/trip_time_text_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00:00"
+                android:textColor="?attr/colorOnPrimary"
+                android:textSize="20sp" />
+
+            <TextView
                 android:id="@+id/speed_unit_text_view"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

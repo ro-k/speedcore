@@ -39,6 +39,7 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     private TextView distanceText;
     private TextView satelliteCountText;
     private TextView avgSpeedText;
+    private TextView tripTimeText;
 
     private FusedLocationProviderClient fusedLocationClient;
     private LocationManager locationManager;
@@ -59,6 +60,7 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
         distanceText = findViewById(R.id.distance_text_view);
         satelliteCountText = findViewById(R.id.satellite_count_text_view);
         avgSpeedText = findViewById(R.id.avg_speed_text_view);
+        tripTimeText = findViewById(R.id.trip_time_text_view);
 
         findViewById(R.id.reset_button).setOnClickListener(v -> viewModel.resetTrip());
         findViewById(R.id.switch_units_button).setVisibility(View.GONE);
@@ -85,6 +87,7 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
         viewModel.getDistance().observe(this, distanceText::setText);
         viewModel.getSatelliteCount().observe(this, satelliteCountText::setText);
         viewModel.getAverageSpeed().observe(this, avgSpeedText::setText);
+        viewModel.getTripTime().observe(this, tripTimeText::setText);
     }
 
     private void createLocationCallback() {

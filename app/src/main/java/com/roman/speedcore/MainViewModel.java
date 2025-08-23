@@ -4,6 +4,9 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import android.os.Handler;
+import android.os.Looper;
+
 public class MainViewModel extends ViewModel {
 
     private final MutableLiveData<String> speed = new MutableLiveData<>();
@@ -12,11 +15,24 @@ public class MainViewModel extends ViewModel {
     private final MutableLiveData<String> distance = new MutableLiveData<>();
     private final MutableLiveData<String> satelliteCount = new MutableLiveData<>();
     private final MutableLiveData<String> averageSpeed = new MutableLiveData<>();
+    private final MutableLiveData<String> tripTime = new MutableLiveData<>();
 
     private float maxSpeedValue = 0f;
     private float distanceValue = 0f;
     private android.location.Location lastLocation;
     private long startTime = 0L;
+
+    private Handler handler = new Handler(Looper.getMainLooper());
+    private Runnable timerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (startTime > 0) {
+                long elapsedTime = System.currentTimeMillis() - startTime;
+                tripTime.setValue(formatTime(elapsedTime));
+                handler.postDelayed(this, 1000);
+            }
+        }
+    };
 
     public LiveData<String> getSpeed() {
         return speed;
@@ -42,9 +58,14 @@ public class MainViewModel extends ViewModel {
         return averageSpeed;
     }
 
+    public LiveData<String> getTripTime() {
+        return tripTime;
+    }
+
     public void onLocationUpdate(android.location.Location location, boolean isMetric) {
         if (startTime == 0L) {
             startTime = System.currentTimeMillis();
+            handler.post(timerRunnable);
         }
 
         float speedInMetersPerSecond = location.getSpeed();
@@ -88,6 +109,8 @@ public class MainViewModel extends ViewModel {
         maxSpeed.setValue(formatMaxSpeed(0, false));
         distance.setValue(formatDistance(0, false));
         averageSpeed.setValue(formatAverageSpeed(0, false));
+        tripTime.setValue(formatTime(0L));
+        handler.removeCallbacks(timerRunnable);
     }
 
     public String formatNumber(double value) {
@@ -117,5 +140,18 @@ public class MainViewModel extends ViewModel {
 
     public String formatAverageSpeed(double value, boolean isMetric) {
         return "Avg: " + formatNumber(value) + (isMetric ? " km/h" : " mph");
+    }
+
+    public String formatTime(long milliseconds) {
+        long seconds = (milliseconds / 1000) % 60;
+        long minutes = (milliseconds / (1000 * 60)) % 60;
+        long hours = (milliseconds / (1000 * 60 * 60));
+        return String.format(java.util.Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds);
+    }
+
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        handler.removeCallbacks(timerRunnable);
     }
 }
