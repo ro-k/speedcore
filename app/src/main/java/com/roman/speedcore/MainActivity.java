@@ -7,6 +7,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,7 +30,14 @@ import android.location.GnssStatus;
 import android.os.Build;
 import androidx.annotation.RequiresApi;
 
-public class MainActivity extends AppCompatActivity implements SettingsDialogFragment.SettingsDialogListener {
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+
+public class MainActivity extends AppCompatActivity implements SettingsDialogFragment.SettingsDialogListener, SensorEventListener {
+
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
 
     private MainViewModel viewModel;
 
@@ -40,6 +48,20 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     private TextView satelliteCountText;
     private TextView avgSpeedText;
     private TextView tripTimeText;
+    private ImageView compassNeedleImageView;
+    private TextView compassHeadingTextView;
+
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private Sensor magnetometer;
+
+    private float[] lastAccelerometer = new float[3];
+    private float[] lastMagnetometer = new float[3];
+    private boolean lastAccelerometerSet = false;
+    private boolean lastMagnetometerSet = false;
+
+    private float[] rotationMatrix = new float[9];
+    private float[] orientation = new float[3];
 
     private FusedLocationProviderClient fusedLocationClient;
     private LocationManager locationManager;
@@ -61,6 +83,8 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
         satelliteCountText = findViewById(R.id.satellite_count_text_view);
         avgSpeedText = findViewById(R.id.avg_speed_text_view);
         tripTimeText = findViewById(R.id.trip_time_text_view);
+        compassNeedleImageView = findViewById(R.id.compass_needle_image_view);
+        compassHeadingTextView = findViewById(R.id.compass_heading_text_view);
 
         findViewById(R.id.reset_button).setOnClickListener(v -> viewModel.resetTrip());
         findViewById(R.id.switch_units_button).setVisibility(View.GONE);
@@ -78,6 +102,10 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
 
         checkLocationPermission();
         loadAndApplySettings();
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
     }
 
     private void setupObservers() {
@@ -88,6 +116,10 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
         viewModel.getSatelliteCount().observe(this, satelliteCountText::setText);
         viewModel.getAverageSpeed().observe(this, avgSpeedText::setText);
         viewModel.getTripTime().observe(this, tripTimeText::setText);
+        viewModel.getCompassHeading().observe(this, heading -> {
+            compassNeedleImageView.setRotation(-heading);
+            compassHeadingTextView.setText(getDirection(heading));
+        });
     }
 
     private void createLocationCallback() {
@@ -130,6 +162,7 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     protected void onPause() {
         super.onPause();
         stopLocationUpdates();
+        sensorManager.unregisterListener(this);
     }
 
     @Override
@@ -137,6 +170,13 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
         super.onResume();
         checkLocationPermission();
         loadAndApplySettings();
+
+        if (accelerometer != null) {
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI);
+        }
+        if (magnetometer != null) {
+            sensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_UI);
+        }
     }
 
     @Override
@@ -175,7 +215,26 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
         viewModel.onSettingsChanged(isMetric);
     }
 
-    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
+    private String getDirection(float heading) {
+        if (heading >= 337.5 || heading < 22.5) {
+            return "N";
+        } else if (heading >= 22.5 && heading < 67.5) {
+            return "NE";
+        } else if (heading >= 67.5 && heading < 112.5) {
+            return "E";
+        } else if (heading >= 112.5 && heading < 157.5) {
+            return "SE";
+        } else if (heading >= 157.5 && heading < 202.5) {
+            return "S";
+        } else if (heading >= 202.5 && heading < 247.5) {
+            return "SW";
+        } else if (heading >= 247.5 && heading < 292.5) {
+            return "W";
+        } else if (heading >= 292.5 && heading < 337.5) {
+            return "NW";
+        }
+        return "";
+    }
 
     private void checkLocationPermission() {
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -224,5 +283,29 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     @RequiresApi(Build.VERSION_CODES.N)
     private void unregisterGnssStatusCallback() {
         locationManager.unregisterGnssStatusCallback(gnssStatusCallback);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            System.arraycopy(event.values, 0, lastAccelerometer, 0, event.values.length);
+            lastAccelerometerSet = true;
+        } else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            System.arraycopy(event.values, 0, lastMagnetometer, 0, event.values.length);
+            lastMagnetometerSet = true;
+        }
+
+        if (lastAccelerometerSet && lastMagnetometerSet) {
+            SensorManager.getRotationMatrix(rotationMatrix, null, lastAccelerometer, lastMagnetometer);
+            SensorManager.getOrientation(rotationMatrix, orientation);
+            float azimuthInRadians = orientation[0];
+            float azimuthInDegrees = (float) (Math.toDegrees(azimuthInRadians) + 360) % 360;
+            viewModel.onCompassChanged(azimuthInDegrees);
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Not used for this implementation
     }
 }

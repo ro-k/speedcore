@@ -16,6 +16,7 @@ public class MainViewModel extends ViewModel {
     private final MutableLiveData<String> satelliteCount = new MutableLiveData<>();
     private final MutableLiveData<String> averageSpeed = new MutableLiveData<>();
     private final MutableLiveData<String> tripTime = new MutableLiveData<>();
+    private final MutableLiveData<Float> compassHeading = new MutableLiveData<>();
 
     private float maxSpeedValue = 0f;
     private float distanceValue = 0f;
@@ -60,6 +61,14 @@ public class MainViewModel extends ViewModel {
 
     public LiveData<String> getTripTime() {
         return tripTime;
+    }
+
+    public LiveData<Float> getCompassHeading() {
+        return compassHeading;
+    }
+
+    public void onCompassChanged(float heading) {
+        compassHeading.setValue(heading);
     }
 
     public void onLocationUpdate(android.location.Location location, boolean isMetric) {
