@@ -95,7 +95,7 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
                     if (location.hasSpeed()) {
                         SharedPreferences sharedPreferences = getSharedPreferences(SettingsDialogFragment.PREFS_NAME, Context.MODE_PRIVATE);
                         boolean isMetric = sharedPreferences.getBoolean(SettingsDialogFragment.KEY_IS_METRIC, false);
-                        viewModel.onLocationUpdate(location.getSpeed(), isMetric);
+                        viewModel.onLocationUpdate(location, isMetric);
                     }
                 }
             }

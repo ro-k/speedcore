@@ -12,6 +12,10 @@ public class MainViewModel extends ViewModel {
     private final MutableLiveData<String> distance = new MutableLiveData<>();
     private final MutableLiveData<String> satelliteCount = new MutableLiveData<>();
 
+    private float maxSpeedValue = 0f;
+    private float distanceValue = 0f;
+    private android.location.Location lastLocation;
+
     public LiveData<String> getSpeed() {
         return speed;
     }
@@ -32,10 +36,21 @@ public class MainViewModel extends ViewModel {
         return satelliteCount;
     }
 
-    public void onLocationUpdate(float speedInMetersPerSecond, boolean isMetric) {
+    public void onLocationUpdate(android.location.Location location, boolean isMetric) {
+        float speedInMetersPerSecond = location.getSpeed();
         float currentSpeed = speedInMetersPerSecond * (isMetric ? 3.6f : 2.23694f);
         speed.setValue(formatNumber(currentSpeed));
-        // TODO: Update max speed and distance
+
+        if (currentSpeed > maxSpeedValue) {
+            maxSpeedValue = currentSpeed;
+            maxSpeed.setValue(formatMaxSpeed(maxSpeedValue, isMetric));
+        }
+
+        if (lastLocation != null) {
+            distanceValue += location.distanceTo(lastLocation);
+            distance.setValue(formatDistance(distanceValue / (isMetric ? 1000 : 1609.34), isMetric));
+        }
+        lastLocation = location;
     }
 
     public void onSatelliteStatusChanged(int satelliteCountValue, int usedInFixCount) {
@@ -44,11 +59,15 @@ public class MainViewModel extends ViewModel {
 
     public void onSettingsChanged(boolean isMetric) {
         unit.setValue(isMetric ? "km/h" : "mph");
-        // TODO: update max speed and distance with new units
+        maxSpeed.setValue(formatMaxSpeed(maxSpeedValue, isMetric));
+        distance.setValue(formatDistance(distanceValue / (isMetric ? 1000 : 1609.34), isMetric));
     }
     
     public void resetTrip() {
         speed.setValue("0");
+        maxSpeedValue = 0f;
+        distanceValue = 0f;
+        lastLocation = null;
         maxSpeed.setValue(formatMaxSpeed(0, false));
         distance.setValue(formatDistance(0, false));
     }
