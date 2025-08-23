@@ -135,6 +135,23 @@ public class MainViewModelTest {
     }
 
     @Test
+    public void onLocationUpdate_updatesAverageSpeed() {
+        Location location1 = createLocation(10, 51.5074, -0.1278); // London
+        viewModel.onLocationUpdate(location1, false);
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        Location location2 = createLocation(10, 51.5074, -0.1278); // London
+        viewModel.onLocationUpdate(location2, false);
+
+        assertNotNull(viewModel.getAverageSpeed().getValue());
+    }
+
+    @Test
     public void onSatelliteStatusChanged_updatesSatelliteCount() {
         viewModel.onSatelliteStatusChanged(10, 5);
         assertEquals("Satellites: 10 (5 used)", viewModel.getSatelliteCount().getValue());

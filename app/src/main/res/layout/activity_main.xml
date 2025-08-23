@@ -88,6 +88,14 @@
                     android:layout_marginStart="16dp"
                     android:textColor="?attr/colorOnPrimary"
                     android:text="Dist: 0 mi" />
+
+                <TextView
+                    android:id="@+id/avg_speed_text_view"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:textColor="?attr/colorOnPrimary"
+                    android:text="Avg: 0 mph" />
             </LinearLayout>
 
             <TextView

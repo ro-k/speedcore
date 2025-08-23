@@ -11,10 +11,12 @@ public class MainViewModel extends ViewModel {
     private final MutableLiveData<String> maxSpeed = new MutableLiveData<>();
     private final MutableLiveData<String> distance = new MutableLiveData<>();
     private final MutableLiveData<String> satelliteCount = new MutableLiveData<>();
+    private final MutableLiveData<String> averageSpeed = new MutableLiveData<>();
 
     private float maxSpeedValue = 0f;
     private float distanceValue = 0f;
     private android.location.Location lastLocation;
+    private long startTime = 0L;
 
     public LiveData<String> getSpeed() {
         return speed;
@@ -36,7 +38,15 @@ public class MainViewModel extends ViewModel {
         return satelliteCount;
     }
 
+    public LiveData<String> getAverageSpeed() {
+        return averageSpeed;
+    }
+
     public void onLocationUpdate(android.location.Location location, boolean isMetric) {
+        if (startTime == 0L) {
+            startTime = System.currentTimeMillis();
+        }
+
         float speedInMetersPerSecond = location.getSpeed();
         float currentSpeed = speedInMetersPerSecond * (isMetric ? 3.6f : 2.23694f);
         speed.setValue(formatNumber(currentSpeed));
@@ -51,6 +61,12 @@ public class MainViewModel extends ViewModel {
             distance.setValue(formatDistance(distanceValue / (isMetric ? 1000 : 1609.34), isMetric));
         }
         lastLocation = location;
+
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        if (elapsedTime > 0) {
+            float avgSpeedValue = (distanceValue / (elapsedTime / 1000f)) * (isMetric ? 3.6f : 2.23694f);
+            averageSpeed.setValue(formatAverageSpeed(avgSpeedValue, isMetric));
+        }
     }
 
     public void onSatelliteStatusChanged(int satelliteCountValue, int usedInFixCount) {
@@ -68,8 +84,10 @@ public class MainViewModel extends ViewModel {
         maxSpeedValue = 0f;
         distanceValue = 0f;
         lastLocation = null;
+        startTime = 0L;
         maxSpeed.setValue(formatMaxSpeed(0, false));
         distance.setValue(formatDistance(0, false));
+        averageSpeed.setValue(formatAverageSpeed(0, false));
     }
 
     public String formatNumber(double value) {
@@ -95,5 +113,9 @@ public class MainViewModel extends ViewModel {
 
     public String formatDistance(double value, boolean isMetric) {
         return "Dist: " + formatNumber(value) + (isMetric ? " km" : " mi");
+    }
+
+    public String formatAverageSpeed(double value, boolean isMetric) {
+        return "Avg: " + formatNumber(value) + (isMetric ? " km/h" : " mph");
     }
 }
