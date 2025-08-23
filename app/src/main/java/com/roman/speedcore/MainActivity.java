@@ -124,22 +124,12 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     protected void onPause() {
         super.onPause();
         stopLocationUpdates();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                locationManager.unregisterGnssStatusCallback(gnssStatusCallback);
-            }
-        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         checkLocationPermission();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                locationManager.registerGnssStatusCallback(ContextCompat.getMainExecutor(this), gnssStatusCallback);
-            }
-        }
         loadAndApplySettings();
     }
 
@@ -209,10 +199,24 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
 
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, getMainLooper());
+            registerGnssStatusCallback();
         }
     }
 
     private void stopLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(locationCallback);
+        unregisterGnssStatusCallback();
+    }
+
+    @RequiresApi(Build.VERSION_CODES.N)
+    private void registerGnssStatusCallback() {
+        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager.registerGnssStatusCallback(ContextCompat.getMainExecutor(this), gnssStatusCallback);
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.N)
+    private void unregisterGnssStatusCallback() {
+        locationManager.unregisterGnssStatusCallback(gnssStatusCallback);
     }
 }
