@@ -23,6 +23,9 @@ public class MainViewModel extends ViewModel {
     private android.location.Location lastLocation;
     private long startTime = 0L;
 
+    private final MovingAverage speedMovingAverage = new MovingAverage(5);
+    private final MovingAverage.CircularMovingAverage compassMovingAverage = new MovingAverage.CircularMovingAverage(10);
+
     private Handler handler = new Handler(Looper.getMainLooper());
     private Runnable timerRunnable = new Runnable() {
         @Override
@@ -68,7 +71,9 @@ public class MainViewModel extends ViewModel {
     }
 
     public void onCompassChanged(float heading) {
-        compassHeading.setValue(heading);
+        compassMovingAverage.add(heading);
+        float smoothedHeading = compassMovingAverage.getAverage();
+        compassHeading.setValue(smoothedHeading);
     }
 
     public void onLocationUpdate(android.location.Location location, boolean isMetric) {
@@ -79,7 +84,10 @@ public class MainViewModel extends ViewModel {
 
         float speedInMetersPerSecond = location.getSpeed();
         float currentSpeed = speedInMetersPerSecond * (isMetric ? 3.6f : 2.23694f);
-        speed.setValue(formatNumber(currentSpeed));
+
+        speedMovingAverage.add(currentSpeed);
+        float smoothedSpeed = speedMovingAverage.getAverage();
+        speed.setValue(String.valueOf(Math.round(smoothedSpeed)));
 
         if (currentSpeed > maxSpeedValue) {
             maxSpeedValue = currentSpeed;
