@@ -264,23 +264,26 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
 
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, getMainLooper());
-            registerGnssStatusCallback();
-        }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                registerGnssStatusCallback();
+                            }        }
     }
 
     private void stopLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(locationCallback);
-        unregisterGnssStatusCallback();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            unregisterGnssStatusCallback();
+        }
     }
 
-    @RequiresApi(Build.VERSION_CODES.N)
+    @RequiresApi(Build.VERSION_CODES.R)
     private void registerGnssStatusCallback() {
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationManager.registerGnssStatusCallback(ContextCompat.getMainExecutor(this), gnssStatusCallback);
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.N)
+    @RequiresApi(Build.VERSION_CODES.R)
     private void unregisterGnssStatusCallback() {
         locationManager.unregisterGnssStatusCallback(gnssStatusCallback);
     }
