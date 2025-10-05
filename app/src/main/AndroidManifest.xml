@@ -6,7 +6,9 @@
 
     <application
         android:allowBackup="true"
+        android:icon="@mipmap/speedcore"
         android:label="@string/app_name"
+        android:roundIcon="@mipmap/speedcore"
         android:supportsRtl="true"
         android:theme="@style/Theme.SpeedCore">
         <activity
