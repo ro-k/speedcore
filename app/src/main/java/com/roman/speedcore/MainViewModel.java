@@ -77,6 +77,10 @@ public class MainViewModel extends ViewModel {
     }
 
     public void onLocationUpdate(android.location.Location location, boolean isMetric) {
+        if (location.getAccuracy() > 20) {
+            return;
+        }
+
         if (startTime == 0L) {
             startTime = System.currentTimeMillis();
             handler.post(timerRunnable);
