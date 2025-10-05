@@ -24,8 +24,8 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.android.material.appbar.MaterialToolbar;
-import java.util.Locale;
 import android.location.GnssStatus;
 import android.os.Build;
 import androidx.annotation.RequiresApi;
@@ -66,7 +66,6 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     private FusedLocationProviderClient fusedLocationClient;
     private LocationManager locationManager;
     private LocationCallback locationCallback;
-    @RequiresApi(Build.VERSION_CODES.N)
     private GnssStatus.Callback gnssStatusCallback;
 
     @Override
@@ -126,9 +125,6 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(@NonNull LocationResult locationResult) {
-                if (locationResult == null) {
-                    return;
-                }
                 for (Location location : locationResult.getLocations()) {
                     if (location.hasSpeed()) {
                         SharedPreferences sharedPreferences = getSharedPreferences(SettingsDialogFragment.PREFS_NAME, Context.MODE_PRIVATE);
@@ -141,21 +137,19 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     }
 
     private void createGnssStatusCallback() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            gnssStatusCallback = new GnssStatus.Callback() {
-                @Override
-                public void onSatelliteStatusChanged(@NonNull GnssStatus status) {
-                    int satelliteCount = status.getSatelliteCount();
-                    int usedInFixCount = 0;
-                    for (int i = 0; i < satelliteCount; i++) {
-                        if (status.usedInFix(i)) {
-                            usedInFixCount++;
-                        }
+        gnssStatusCallback = new GnssStatus.Callback() {
+            @Override
+            public void onSatelliteStatusChanged(@NonNull GnssStatus status) {
+                int satelliteCount = status.getSatelliteCount();
+                int usedInFixCount = 0;
+                for (int i = 0; i < satelliteCount; i++) {
+                    if (status.usedInFix(i)) {
+                        usedInFixCount++;
                     }
-                    viewModel.onSatelliteStatusChanged(satelliteCount, usedInFixCount);
                 }
-            };
-        }
+                viewModel.onSatelliteStatusChanged(satelliteCount, usedInFixCount);
+            }
+        };
     }
 
     @Override
@@ -257,10 +251,9 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     }
 
     private void startLocationUpdates() {
-        LocationRequest locationRequest = LocationRequest.create();
-        locationRequest.setInterval(1000);
-        locationRequest.setFastestInterval(500);
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                .setMinUpdateIntervalMillis(500)
+                .build();
 
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, getMainLooper());
