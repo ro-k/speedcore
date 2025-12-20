@@ -47,11 +47,22 @@ public class MainViewModelTest {
     @Test
     public void resetTrip_resetsValues() {
         Location location = createLocation(10, 0, 0);
+        viewModel.onSettingsChanged(false);
         viewModel.onLocationUpdate(location, false);
         viewModel.resetTrip();
         assertEquals("0", viewModel.getSpeed().getValue());
         assertEquals("Max: 0 mph", viewModel.getMaxSpeed().getValue());
         assertEquals("Dist: 0 mi", viewModel.getDistance().getValue());
+        assertEquals("Avg: 0 mph", viewModel.getAverageSpeed().getValue());
+    }
+
+    @Test
+    public void resetTrip_usesMetricUnitsWhenEnabled() {
+        viewModel.onSettingsChanged(true);
+        viewModel.resetTrip();
+        assertEquals("Max: 0 km/h", viewModel.getMaxSpeed().getValue());
+        assertEquals("Dist: 0 km", viewModel.getDistance().getValue());
+        assertEquals("Avg: 0 km/h", viewModel.getAverageSpeed().getValue());
     }
 
     @Test
