@@ -67,6 +67,7 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     private LocationManager locationManager;
     private LocationCallback locationCallback;
     private GnssStatus.Callback gnssStatusCallback;
+    private boolean locationUpdatesActive = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -251,22 +252,33 @@ public class MainActivity extends AppCompatActivity implements SettingsDialogFra
     }
 
     private void startLocationUpdates() {
+        if (locationUpdatesActive) {
+            return;
+        }
+
         LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
                 .setMinUpdateIntervalMillis(500)
                 .build();
 
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, getMainLooper());
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                registerGnssStatusCallback();
-                            }        }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                registerGnssStatusCallback();
+            }
+            locationUpdatesActive = true;
+        }
     }
 
     private void stopLocationUpdates() {
+        if (!locationUpdatesActive) {
+            return;
+        }
+
         fusedLocationClient.removeLocationUpdates(locationCallback);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             unregisterGnssStatusCallback();
         }
+        locationUpdatesActive = false;
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
