@@ -61,7 +61,8 @@ public class MovingAverage {
             float avgSin = sumSin / window.size();
             float avgCos = sumCos / window.size();
             float avgAngleRad = (float) Math.atan2(avgSin, avgCos);
-            return (float) Math.toDegrees(avgAngleRad);
+            float avgAngleDeg = (float) Math.toDegrees(avgAngleRad);
+            return (avgAngleDeg + 360f) % 360f;
         }
     }
 }
