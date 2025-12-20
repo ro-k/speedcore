@@ -22,6 +22,7 @@ public class MainViewModel extends ViewModel {
     private float distanceValue = 0f;
     private android.location.Location lastLocation;
     private long startTime = 0L;
+    private boolean isMetric = false;
 
     private final MovingAverage speedMovingAverage = new MovingAverage(5);
     private final MovingAverage.CircularMovingAverage compassMovingAverage = new MovingAverage.CircularMovingAverage(10);
@@ -77,6 +78,7 @@ public class MainViewModel extends ViewModel {
     }
 
     public void onLocationUpdate(android.location.Location location, boolean isMetric) {
+        this.isMetric = isMetric;
         if (location.getAccuracy() > 20) {
             return;
         }
@@ -116,20 +118,22 @@ public class MainViewModel extends ViewModel {
     }
 
     public void onSettingsChanged(boolean isMetric) {
+        this.isMetric = isMetric;
         unit.setValue(isMetric ? "km/h" : "mph");
         maxSpeed.setValue(formatMaxSpeed(maxSpeedValue, isMetric));
         distance.setValue(formatDistance(distanceValue / (isMetric ? 1000 : 1609.34), isMetric));
     }
     
     public void resetTrip() {
+        boolean isMetricUnit = this.isMetric;
         speed.setValue("0");
         maxSpeedValue = 0f;
         distanceValue = 0f;
         lastLocation = null;
         startTime = 0L;
-        maxSpeed.setValue(formatMaxSpeed(0, false));
-        distance.setValue(formatDistance(0, false));
-        averageSpeed.setValue(formatAverageSpeed(0, false));
+        maxSpeed.setValue(formatMaxSpeed(0, isMetricUnit));
+        distance.setValue(formatDistance(0, isMetricUnit));
+        averageSpeed.setValue(formatAverageSpeed(0, isMetricUnit));
         tripTime.setValue(formatTime(0L));
         handler.removeCallbacks(timerRunnable);
     }
